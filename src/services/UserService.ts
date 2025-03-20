@@ -5,8 +5,20 @@ import { AppDataSource } from '../config/ormconfig';
 export class UserService {
     constructor() { }
 
-    async createUser(userData: Partial<User>): Promise<User> {
-        return UserRepository.save(userData);
+    async createUserWithDetails(userData: Partial<User>): Promise<User> {
+        const user = UserRepository.create(userData)
+        return UserRepository.save(user);
+    }
+
+
+
+    /**
+     * Find a user by id.
+     * @param uuid - The uuid of the user.
+     * @returns The user if found, otherwise undefined.
+     */
+    findByUuid(uuid: string): Promise<User> {
+        return UserRepository.findOne({ where: { uuid } });
     }
 
     /**
