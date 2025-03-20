@@ -1,9 +1,8 @@
 import express from 'express';
-import userRoutes from './routes/UserRoutes'
-// import { UserController } from './controllers/UserController';
-// import { errorHandler } from './middleware/errorHandler';
+import interestRoutes from './routes/InterestRoutes';
+import languageRoutes from './routes/LanguagesRoutes';
+import userRoutes from './routes/UserRoutes';
 
-// This class is for configure your Express app (middleware, routes, etc.) and export it.
 const app = express();
 
 // Middleware to parse JSON bodies
@@ -11,6 +10,8 @@ app.use(express.json());
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/interests', interestRoutes);
+app.use('/api/languages', languageRoutes);
 
 // Export the app for use in server.ts or tests
 export default app;

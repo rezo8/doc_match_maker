@@ -9,7 +9,7 @@ export const UserRepository = AppDataSource.getRepository(User).extend({
      * @returns The user if found, otherwise undefined.
      */
     async findByEmail(email: string): Promise<User | undefined> {
-        return this.findOne({ where: { email } });
+        return this.findOne({ where: { email }, relations: ['userLanguages', 'userInterests'], });
     },
 
 
@@ -18,7 +18,7 @@ export const UserRepository = AppDataSource.getRepository(User).extend({
      * @returns A list of active users.
      */
     async findActiveUsers(): Promise<User[]> {
-        return this.findOne({ where: { isActive: true } });
+        return this.findOne({ where: { isActive: true }, relations: ['userLanguages', 'userInterests'], });
     },
 
     /**
@@ -27,7 +27,7 @@ export const UserRepository = AppDataSource.getRepository(User).extend({
      * @returns A list of users with the specified role.
      */
     async findByRole(role: 'doctor' | 'student' | 'patient'): Promise<User[]> {
-        return this.findOne({ where: { role } });
+        return this.findOne({ where: { role }, relations: ['userLanguages', 'userInterests'], });
     },
 
     /**

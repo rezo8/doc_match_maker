@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { UserService } from '../services/UserService';
-import { CreateUserDto } from '../dtos/CreateUserDTO';
+import { CreateUserDto, UpdateUserInterestsDto, UpdateUserLanguagesDto } from '../dtos/CreateUserDTO';
 import { LanguageProficiency } from '../entities/UserLanguage';
+import { UserService } from '../services/UserService';
 
 const userService = new UserService()
 
@@ -50,6 +50,56 @@ export const createUser = async (req: Request, res: Response) => {
                 user: newUser,
                 interests,
                 languages,
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+export const updateUserInterests = async (req: Request, res: Response) => {
+    const userId = req.params.userUuid
+    const updateUserInterestsReq: UpdateUserInterestsDto = req.body
+
+    if (!updateUserInterestsReq) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+    try {
+        // Save the user to the database
+        await userService.updateUserInterests(userId, updateUserInterestsReq.interests.map(x => x.name));
+
+        const updatedUser = await userService.findByUuid(userId)
+        // Return the response
+        res.status(201).json({
+            message: 'User Interests updated successfully',
+            data: {
+                user: updatedUser
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+export const updateUserLanguages = async (req: Request, res: Response) => {
+    const userId = req.params.userUuid
+    const updateLanguagesReq: UpdateUserLanguagesDto = req.body
+
+    if (!updateLanguagesReq) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+    try {
+        // Save the user to the database
+        const languageMap = updateLanguagesReq.languages.reduce((map, { name, proficiency }) => map.set(name, proficiency), new Map<string, LanguageProficiency>());
+        await userService.updateUserLanguages(userId, languageMap);
+        const updatedUser = await userService.findByUuid(userId)
+        // Return the response
+        res.status(201).json({
+            message: 'User Languages updated successfully',
+            data: {
+                user: updatedUser
             },
         });
     } catch (error) {

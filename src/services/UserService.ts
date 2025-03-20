@@ -1,13 +1,10 @@
-import { UserRepository } from '../repositories/UserRepository';
-import { User } from '../entities/User';
 import { AppDataSource } from '../config/ormconfig';
-import { Interest } from '../entities/Interest';
-import { InterestRepository } from '../repositories/InterestsRepository';
-import { UserInterestRepository } from '../repositories/UserInterestsRepository';
+import { User } from '../entities/User';
 import { UserInterest } from '../entities/UserInterest';
-import { LanguageRepository } from '../repositories/LanguagesRepository';
 import { LanguageProficiency, UserLanguage } from '../entities/UserLanguage';
-import { UserLanguageRepository } from '../repositories/UserLanguagesRepository copy';
+import { InterestRepository } from '../repositories/InterestsRepository';
+import { LanguageRepository } from '../repositories/LanguagesRepository';
+import { UserRepository } from '../repositories/UserRepository';
 
 export class UserService {
     constructor() { }
@@ -22,8 +19,6 @@ export class UserService {
                 // Step 1: Create and save the user
                 const user = transactionalEntityManager.create(User, userData);
                 const savedUser = await transactionalEntityManager.save(user);
-
-                console.log(interestNames)
                 // Step 2: Add interests (if any)    
                 if (interestNames && interestNames.length > 0) {
                     const interestIds = await InterestRepository.getIdsByNames(interestNames);
@@ -65,13 +60,86 @@ export class UserService {
         }
     }
 
+    async updateUserInterests(userId: string, interestNames: string[]): Promise<void> {
+        return await AppDataSource.transaction(async (transactionalEntityManager) => {
+            // Step 1: Fetch current interests
+            const existingInterests = await transactionalEntityManager.find(UserInterest, { where: { userId } });
+
+            const existingInterestIds = new Set(existingInterests.map(ui => ui.interestId));
+            var newInterestIds = new Set()
+            var interestIds = []
+            // Step 2: Get interest IDs for the provided names
+            if (interestNames.length > 0) {
+                interestIds = await InterestRepository.getIdsByNames(interestNames);
+                newInterestIds = new Set(interestIds);
+            }
+
+            console.log(newInterestIds)
+            // Step 3: Determine which interests to add and remove
+            const interestsToAdd = interestIds.filter(id => !existingInterestIds.has(id));
+            const interestsToRemove = existingInterests.filter(ui => !newInterestIds.has(ui.interestId));
+
+            // Step 4: Add missing interests
+            if (interestsToAdd.length > 0) {
+                const newUserInterests = interestsToAdd.map(interestId =>
+                    transactionalEntityManager.create(UserInterest, { userId, interestId })
+                );
+                await transactionalEntityManager.save(UserInterest, newUserInterests);
+            }
+
+            // Step 5: Remove outdated interests
+            if (interestsToRemove.length > 0) {
+                await transactionalEntityManager.remove(UserInterest, interestsToRemove);
+            }
+        });
+    }
+
+    async updateUserLanguages(userId: string, languageMap: Map<string, LanguageProficiency>): Promise<void> {
+        return await AppDataSource.transaction(async (transactionalEntityManager) => {
+            // Step 1: Fetch current languages
+            const existingLanguages = await transactionalEntityManager.find(UserLanguage, { where: { userId } });
+
+            // Step 2: Get language IDs for the provided names
+            const languages = await LanguageRepository.getLanguagesFromNames({ names: [...languageMap.keys()] });
+
+            // Step 3: Determine which languages to add, update, and remove
+            const existingLanguageMap = new Map(existingLanguages.map(ul => [ul.languageId, ul.proficiency]));
+            const newLanguageMap = new Map(languages.map(l => [l.id, languageMap.get(l.name)]));
+
+            const languagesToAdd = languages.filter(l => !existingLanguageMap.has(l.id));
+            const languagesToUpdate = languages.filter(l => existingLanguageMap.has(l.id) && existingLanguageMap.get(l.id) !== newLanguageMap.get(l.id));
+            const languagesToRemove = existingLanguages.filter(ul => !newLanguageMap.has(ul.languageId));
+
+            // Step 4: Add missing languages
+            if (languagesToAdd.length > 0) {
+                const newUserLanguages = languagesToAdd.map(language =>
+                    transactionalEntityManager.create(UserLanguage, {
+                        userId,
+                        languageId: language.id,
+                        proficiency: languageMap.get(language.name)
+                    })
+                );
+                await transactionalEntityManager.save(UserLanguage, newUserLanguages);
+            }
+
+            // Step 5: Update proficiency for existing languages
+            for (const language of languagesToUpdate) {
+                await transactionalEntityManager.update(UserLanguage, { userId, languageId: language.id }, { proficiency: newLanguageMap.get(language.id) });
+            }
+
+            // Step 6: Remove outdated languages
+            if (languagesToRemove.length > 0) {
+                await transactionalEntityManager.remove(UserLanguage, languagesToRemove);
+            }
+        });
+    }
 
     /**
      * Return all users
      * @returns all users in the database.
      */
     async list(): Promise<User[]> {
-        return UserRepository.find({});
+        return UserRepository.find({ relations: ['userLanguages', 'userInterests'], });
     }
 
     /**
@@ -80,7 +148,10 @@ export class UserService {
      * @returns The user if found, otherwise undefined.
      */
     async findByUuid(uuid: string): Promise<User> {
-        return UserRepository.findOne({ where: { uuid } });
+        return UserRepository.findOne({
+            where: { uuid },
+            relations: ['userLanguages', 'userInterests'],
+        });
     }
 
     /**
