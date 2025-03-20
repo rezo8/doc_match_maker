@@ -5,7 +5,7 @@ import app from './app'; // Import the configured Express app
 // This class is for handling database connections and start the server.
 
 // Start the server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 AppDataSource.initialize()
     .then(() => {
