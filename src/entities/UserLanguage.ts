@@ -1,0 +1,26 @@
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { User } from './User';
+import { Language } from './Language';
+
+@Entity('user_languages')
+export class UserLanguage {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column({ type: 'uuid' })
+    userId: string;
+
+    @Column()
+    languageId: number;
+
+    @Column({ type: 'enum', enum: ['beginner', 'intermediate', 'fluent'] })
+    proficiency: 'beginner' | 'intermediate' | 'fluent';
+
+    @ManyToOne(() => User, (user) => user.userLanguages, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'userId' })
+    user: User;
+
+    @ManyToOne(() => Language, (language) => language.userLanguages, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'languageId' })
+    language: Language;
+}

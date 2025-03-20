@@ -1,4 +1,8 @@
+// For some reason this shows compilation error :( but imports need to be capitalized.
 import { DataSource } from 'typeorm';
+import { Language } from '../entities/Language';
+import { User } from '../entities/User';
+import { UserLanguage } from '../entities/UserLanguage';
 
 export const AppDataSource = new DataSource({
     type: 'postgres', // Database type
@@ -9,7 +13,7 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_NAME,
     synchronize: true, // Automatically sync schema (disable in production)
     logging: true,
-    entities: [], // Add all entities here
+    entities: [Language, User, UserLanguage], // Add all entities here
     migrations: ['src/migrations/*.ts'], // Add all migrations here
     subscribers: ['src/subscribers/*.ts'], // Add all subscribers here
 });
