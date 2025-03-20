@@ -1,14 +1,18 @@
-import 'dotenv/config';
 import express from 'express';
-import { AppDataSource } from './config/ormconfig';
+// import { UserController } from './controllers/UserController';
+// import { errorHandler } from './middleware/errorHandler';
 
+// This class is for configure your Express app (middleware, routes, etc.) and export it.
 const app = express();
 
-AppDataSource.initialize()
-    .then(() => {
-        console.log('Database connected');
-        app.listen(3000, () => {
-            console.log('Server is running on port 3000');
-        });
-    })
-    .catch((error) => console.log('Database connection error:', error));
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+// Routes
+// app.use('/users', UserController); // Example route
+
+// Error handling middleware
+// app.use(errorHandler);
+
+// Export the app for use in server.ts or tests
+export default app;
