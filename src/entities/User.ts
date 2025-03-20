@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { UserLanguage } from './UserLanguage';
 import { UserInterest } from './UserInterest';
+import { Match } from './Match';
 
 export enum UserRole {
     DOCTOR = "doctor",
@@ -58,5 +59,11 @@ export class User {
 
     @OneToMany(() => UserInterest, (userInterest) => userInterest.user)
     userInterests: UserLanguage[];
+
+    @OneToMany(() => Match, (match) => match.user1)
+    matchesAsUser1: Match[];
+
+    @OneToMany(() => Match, (match) => match.user2)
+    matchesAsUser2: Match[];
 
 }

@@ -5,6 +5,7 @@ import { User } from '../entities/User';
 import { UserLanguage } from '../entities/UserLanguage';
 import { Interest } from '../entities/Interest';
 import { UserInterest } from '../entities/UserInterest';
+import { Match } from '../entities/Match';
 
 export const AppDataSource = new DataSource({
     type: 'postgres', // Database type
@@ -15,7 +16,7 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_NAME,
     synchronize: true, // Automatically sync schema (disable in production)
     logging: true,
-    entities: [Language, User, UserLanguage, Interest, UserInterest], // Add all entities here
+    entities: [Language, User, UserLanguage, Interest, UserInterest, Match], // Add all entities here
     migrations: ['src/migrations/*.ts'], // Add all migrations here
     subscribers: ['src/subscribers/*.ts'], // Add all subscribers here
 });
