@@ -2,6 +2,13 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 't
 import { User } from './User';
 import { Language } from './Language';
 
+export enum LanguageProficiency {
+    BEGINNER = "beginner",
+    INTERMEDIATE = "intermediate",
+    FLUENT = "fluent"
+}
+
+
 @Entity('user_languages')
 export class UserLanguage {
     @PrimaryGeneratedColumn()
@@ -14,8 +21,8 @@ export class UserLanguage {
     languageId: number;
 
     // TODO make enum
-    @Column({ type: 'enum', enum: ['beginner', 'intermediate', 'fluent'] })
-    proficiency: 'beginner' | 'intermediate' | 'fluent';
+    @Column({ type: 'enum', enum: LanguageProficiency })
+    proficiency: LanguageProficiency;
 
     @ManyToOne(() => User, (user) => user.userLanguages, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'userId' })

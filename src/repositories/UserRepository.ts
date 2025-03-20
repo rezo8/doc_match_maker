@@ -12,6 +12,7 @@ export const UserRepository = AppDataSource.getRepository(User).extend({
         return this.findOne({ where: { email } });
     },
 
+
     /**
      * Find all active users.
      * @returns A list of active users.

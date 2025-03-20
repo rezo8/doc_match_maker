@@ -12,12 +12,6 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 
-// Routes
-// app.use('/users', UserController); // Example route
-
-// Error handling middleware
-// app.use(errorHandler);
-
 // Export the app for use in server.ts or tests
 export default app;
 
