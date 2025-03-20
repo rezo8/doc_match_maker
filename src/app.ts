@@ -1,11 +1,14 @@
+import 'dotenv/config';
 import express from 'express';
+import { AppDataSource } from './config/ormconfig';
+
 const app = express();
-const port = 3000;
 
-app.get('/', (req, res) => {
-    res.send('Hello World!');
-});
-
-app.listen(port, () => {
-    return console.log(`Express is listening at http://localhost:${port}`);
-});
+AppDataSource.initialize()
+    .then(() => {
+        console.log('Database connected');
+        app.listen(3000, () => {
+            console.log('Server is running on port 3000');
+        });
+    })
+    .catch((error) => console.log('Database connection error:', error));
