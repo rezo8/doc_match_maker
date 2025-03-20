@@ -7,6 +7,7 @@ import {
     UpdateDateColumn
 } from 'typeorm';
 import { UserLanguage } from './UserLanguage';
+import { UserInterest } from './UserInterest';
 
 export enum UserRole {
     DOCTOR = "doctor",
@@ -54,5 +55,8 @@ export class User {
 
     @OneToMany(() => UserLanguage, (userLanguage) => userLanguage.user)
     userLanguages: UserLanguage[];
+
+    @OneToMany(() => UserInterest, (userInterest) => userInterest.user)
+    userInterests: UserLanguage[];
 
 }

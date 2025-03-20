@@ -13,6 +13,7 @@ export class UserLanguage {
     @Column()
     languageId: number;
 
+    // TODO make enum
     @Column({ type: 'enum', enum: ['beginner', 'intermediate', 'fluent'] })
     proficiency: 'beginner' | 'intermediate' | 'fluent';
 
