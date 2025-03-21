@@ -1,93 +1,84 @@
+import { In, Repository } from 'typeorm';
 import { AppDataSource } from '../config/ormconfig';
-import { User } from '../entities/User';
+import { User, UserRole } from '../entities/User';
 import { UserInterest } from '../entities/UserInterest';
 import { LanguageProficiency, UserLanguage } from '../entities/UserLanguage';
-import { InterestRepository } from '../repositories/InterestsRepository';
-import { LanguageRepository } from '../repositories/LanguagesRepository';
-import { UserRepository } from '../repositories/UserRepository';
+import { InterestService } from './InterestService';
+import { LanguageService } from './LanguageService';
 
 export class UserService {
-    constructor() { }
+    private userRepository: Repository<User>;
+    private languageService: LanguageService
+    private interestService: InterestService
+
+    constructor(
+        userRepository: Repository<User> = AppDataSource.getRepository(User),
+        languageService: LanguageService = new LanguageService(),
+        interestService: InterestService = new InterestService()
+    ) {
+        this.userRepository = userRepository;
+        this.languageService = languageService;
+        this.interestService = interestService;
+    }
 
     async createUserWithDetails(
         userData: Partial<User>,
         interestNames: string[],
         languageMap: Map<string, LanguageProficiency>
     ): Promise<User> {
-        try {
-            return await AppDataSource.transaction(async (transactionalEntityManager) => {
-                // Step 1: Create and save the user
-                const user = transactionalEntityManager.create(User, userData);
-                const savedUser = await transactionalEntityManager.save(user);
-                // Step 2: Add interests (if any)    
-                if (interestNames && interestNames.length > 0) {
-                    const interestIds = await InterestRepository.getIdsByNames(interestNames);
-                    console.log(interestIds)
-                    console.log(savedUser.uuid)
-                    const userInterests = interestIds.map((interestId) =>
-                        transactionalEntityManager.create(UserInterest,
-                            {
-                                userId: savedUser.uuid,
-                                interestId: interestId
-                            }
-                        )
-                    );
-                    await transactionalEntityManager.save(UserInterest, userInterests);
-                }
+        return await AppDataSource.transaction(async (transactionalEntityManager) => {
+            // Step 1: Create and save the user
+            const user = transactionalEntityManager.create(User, userData);
+            const savedUser = await transactionalEntityManager.save(user);
 
-                // Step 3: Add languages (if any)
-                if (languageMap && languageMap.size > 0) {
-                    const languages = await LanguageRepository.getLanguagesFromNames({ names: [...languageMap.keys()] });
-                    const userLanguages = languages.map((language) =>
-                        transactionalEntityManager.create(UserLanguage,
-                            {
-                                userId: savedUser.uuid,
-                                languageId: language.id,
-                                proficiency: languageMap.get(language.name)
-                            }
-                        )
-                    );
-                    await transactionalEntityManager.save(UserLanguage, userLanguages);
-                }
-                // TODO return some information about the created language and interests.
+            // Step 2: Add interests (if any)
+            if (interestNames.length > 0) {
+                const interestIds = (await this.interestService.getInterestsByNames(interestNames)).map((interest) => interest.id);;
+                const userInterests = interestIds.map((interestId) =>
+                    transactionalEntityManager.create(UserInterest, { userId: savedUser.uuid, interestId })
+                );
+                await transactionalEntityManager.save(UserInterest, userInterests);
+            }
 
-                // Step 4: Return the saved user
-                return savedUser;
-            });
-        } catch (error) {
-            console.error('Error creating user with details:', error);
-            throw new Error('Failed to create user due to an internal error');
-        }
+            // Step 3: Add languages (if any)
+            if (languageMap.size > 0) {
+                const languages = await this.languageService.getLanguagesFromNames([...languageMap.keys()]);
+                const userLanguages = languages.map((language) =>
+                    transactionalEntityManager.create(UserLanguage, {
+                        userId: savedUser.uuid,
+                        languageId: language.id,
+                        proficiency: languageMap.get(language.name),
+                    })
+                );
+                await transactionalEntityManager.save(UserLanguage, userLanguages);
+            }
+
+            return savedUser;
+        });
     }
 
     async updateUserInterests(userId: string, interestNames: string[]): Promise<void> {
         return await AppDataSource.transaction(async (transactionalEntityManager) => {
-            // Step 1: Fetch current interests
+            // Fetch current interests
             const existingInterests = await transactionalEntityManager.find(UserInterest, { where: { userId } });
+            const existingInterestIds = new Set(existingInterests.map((ui) => ui.interestId));
 
-            const existingInterestIds = new Set(existingInterests.map(ui => ui.interestId));
-            var newInterestIds = new Set()
-            var interestIds = []
-            // Step 2: Get interest IDs for the provided names
-            if (interestNames.length > 0) {
-                interestIds = await InterestRepository.getIdsByNames(interestNames);
-                newInterestIds = new Set(interestIds);
-            }
+            // Fetch new interest IDs
+            const interestIds = interestNames.length > 0 ? (await this.interestService.getInterestsByNames(interestNames)).map((interest) => interest.id) : [];
+            const newInterestIds = new Set(interestIds);
+            // Determine which interests to add and remove
+            const interestsToAdd = interestIds.filter((id) => !existingInterestIds.has(id));
+            const interestsToRemove = existingInterests.filter((ui) => !newInterestIds.has(ui.interestId));
 
-            console.log(newInterestIds)
-            // Step 3: Determine which interests to add and remove
-            const interestsToAdd = interestIds.filter(id => !existingInterestIds.has(id));
-            const interestsToRemove = existingInterests.filter(ui => !newInterestIds.has(ui.interestId));
-
-            // Step 4: Add missing interests
+            // Add new interests
             if (interestsToAdd.length > 0) {
-                const newUserInterests = interestsToAdd.map(interestId =>
+                const newUserInterests = interestsToAdd.map((interestId) =>
                     transactionalEntityManager.create(UserInterest, { userId, interestId })
                 );
                 await transactionalEntityManager.save(UserInterest, newUserInterests);
             }
 
-            // Step 5: Remove outdated interests
+            // Remove outdated interests
             if (interestsToRemove.length > 0) {
                 await transactionalEntityManager.remove(UserInterest, interestsToRemove);
             }
@@ -96,101 +87,117 @@ export class UserService {
 
     async updateUserLanguages(userId: string, languageMap: Map<string, LanguageProficiency>): Promise<void> {
         return await AppDataSource.transaction(async (transactionalEntityManager) => {
-            // Step 1: Fetch current languages
+            // Fetch current languages
             const existingLanguages = await transactionalEntityManager.find(UserLanguage, { where: { userId } });
 
-            // Step 2: Get language IDs for the provided names
-            const languages = await LanguageRepository.getLanguagesFromNames({ names: [...languageMap.keys()] });
+            // Fetch new language IDs
+            const languages = await this.languageService.getLanguagesFromNames([...languageMap.keys()]);
+            // Determine which languages to add, update, and remove
+            const existingLanguageMap = new Map(existingLanguages.map((ul) => [ul.languageId, ul.proficiency]));
+            const newLanguageMap = new Map(languages.map((l) => [l.id, languageMap.get(l.name)]));
 
-            // Step 3: Determine which languages to add, update, and remove
-            const existingLanguageMap = new Map(existingLanguages.map(ul => [ul.languageId, ul.proficiency]));
-            const newLanguageMap = new Map(languages.map(l => [l.id, languageMap.get(l.name)]));
+            const languagesToAdd = languages.filter((l) => !existingLanguageMap.has(l.id));
+            const languagesToUpdate = languages.filter(
+                (l) => existingLanguageMap.has(l.id) && existingLanguageMap.get(l.id) !== newLanguageMap.get(l.id)
+            );
+            const languagesToRemove = existingLanguages.filter((ul) => !newLanguageMap.has(ul.languageId));
 
-            const languagesToAdd = languages.filter(l => !existingLanguageMap.has(l.id));
-            const languagesToUpdate = languages.filter(l => existingLanguageMap.has(l.id) && existingLanguageMap.get(l.id) !== newLanguageMap.get(l.id));
-            const languagesToRemove = existingLanguages.filter(ul => !newLanguageMap.has(ul.languageId));
-
-            // Step 4: Add missing languages
+            // Add missing languages
             if (languagesToAdd.length > 0) {
-                const newUserLanguages = languagesToAdd.map(language =>
+                const newUserLanguages = languagesToAdd.map((language) =>
                     transactionalEntityManager.create(UserLanguage, {
                         userId,
                         languageId: language.id,
-                        proficiency: languageMap.get(language.name)
+                        proficiency: languageMap.get(language.name),
                     })
                 );
                 await transactionalEntityManager.save(UserLanguage, newUserLanguages);
             }
 
-            // Step 5: Update proficiency for existing languages
+            // Update proficiency for existing languages
             for (const language of languagesToUpdate) {
-                await transactionalEntityManager.update(UserLanguage, { userId, languageId: language.id }, { proficiency: newLanguageMap.get(language.id) });
+                await transactionalEntityManager.update(
+                    UserLanguage,
+                    { userId, languageId: language.id },
+                    { proficiency: newLanguageMap.get(language.id) }
+                );
             }
 
-            // Step 6: Remove outdated languages
+            // Remove outdated languages
             if (languagesToRemove.length > 0) {
                 await transactionalEntityManager.remove(UserLanguage, languagesToRemove);
             }
         });
     }
 
-    /**
-     * Return all users
-     * @returns all users in the database.
-     */
-    async list(): Promise<User[]> {
-        return UserRepository.find({ relations: ['userLanguages', 'userInterests'], });
-    }
+    // TODO make it so that it is exclusive AND rather than inclusive OR for interest and languages.
+    async list(queryParams: any = {}): Promise<User[]> {
+        const { type, email } = queryParams;
+        const interests = queryParams.interests ? queryParams.interests.split(',') : [];
+        const languages = queryParams.languages ? queryParams.languages.split(',') : [];
 
-    /**
-     * Find a user by id.
-     * @param uuid - The uuid of the user.
-     * @returns The user if found, otherwise undefined.
-     */
-    async findByUuid(uuid: string): Promise<User> {
-        return UserRepository.findOne({
-            where: { uuid },
-            relations: ['userLanguages', 'userInterests'],
+
+        // Step 1: Fetch IDs for interests and languages based on their names
+        let interestIds: number[] = [];
+        let languageIds: number[] = [];
+
+        if (interests && interests.length > 0) {
+            const interestNames = Array.isArray(interests) ? interests : [interests];
+            interestIds = (await this.interestService.getInterestsByNames(interestNames)).map((interest) => interest.id);
+        }
+
+        if (languages && languages.length > 0) {
+            const languageNames: string[] = Array.isArray(languages) ? languages : [languages];
+            languageIds = (await this.languageService.getLanguagesFromNames(languageNames)).map(x => x.id);
+        }
+        // Step 2: Build the where object
+        const where: any = {};
+
+        if (type) {
+            where.type = type;
+        }
+
+        if (email) {
+            where.email = email;
+        }
+
+        if (interestIds.length > 0) {
+            where.userInterests = { interestId: In(interestIds) };
+        }
+
+        if (languageIds.length > 0) {
+            where.userLanguages = { languageId: In(languageIds) };
+        }
+
+        // Step 3: Execute the query with the where object
+        return await this.userRepository.find({
+            where,
+            relations: ['userInterests', 'userLanguages'], // Include relations
         });
     }
 
-    /**
-     * Find a user by email.
-     * @param email - The email of the user.
-     * @returns The user if found, otherwise undefined.
-     */
-    findByEmail(email: string): Promise<User> {
-        return UserRepository.findByEmail(email)
+    async findByUuid(uuid: string): Promise<User | null> {
+        return this.userRepository.findOne({ where: { uuid }, relations: ['userLanguages', 'userInterests'] }) ?? null;
     }
 
-    /**
-     * Deactivate a user by ID.
-     * @param id - The UUID of the user.
-     * @returns The updated user.
-     */
-    deactivateUser(id: string): Promise<User | undefined> {
-        return AppDataSource.transaction(async (manager) => {
-            return UserRepository.deactivateUser(id);
-        })
+    async findByEmail(email: string): Promise<User | null> {
+        return this.userRepository.findOne({ where: { email }, relations: ['userLanguages', 'userInterests'] }) ?? null;
     }
 
-    /**
-     * Find all active users.
-     * @returns A list of active users.
-     */
-    findActiveUsers(): Promise<User[]> {
-        return UserRepository.findActiveUsers();
+    async deactivateUser(uuid: string): Promise<User | null> {
+        const user = await this.userRepository.findOne({ where: { uuid } });
+        if (!user) {
+            return null;
+        }
+        user.isActive = false;
+        return this.userRepository.save(user);
     }
 
-    findAllUsers(): Promise<User[]> {
-        return UserRepository.find({})
+    async findActiveUsers(): Promise<User[]> {
+        return this.userRepository.find({ where: { isActive: true }, relations: ['userLanguages', 'userInterests'] });
     }
-    /**
-     * Find users by role.
-     * @param role - The role of the users (e.g., 'doctor', 'student', 'patient').
-     * @returns A list of users with the specified role.
-     */
-    findByRole(role: 'doctor' | 'student' | 'patient'): Promise<User[]> {
-        return UserRepository.findByRole(role);
+
+    async findByRole(role: UserRole): Promise<User[]> {
+        return this.userRepository.find({ where: { role }, relations: ['userLanguages', 'userInterests'] });
     }
 }
