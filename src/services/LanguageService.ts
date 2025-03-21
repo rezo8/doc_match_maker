@@ -1,27 +1,40 @@
+import { Repository } from "typeorm";
+import { AppDataSource } from "../config/ormconfig";
 import { Language } from "../entities/Language";
-import { LanguageRepository } from "../repositories/LanguagesRepository";
 
 export class LanguageService {
-    constructor() { }
+    private languageRepository: Repository<Language>
+    constructor() {
+        this.languageRepository = AppDataSource.getRepository(Language);
+    }
 
     async list(): Promise<Language[]> {
-        return LanguageRepository.find({})
+        return this.languageRepository.find({})
     }
 
     async addLanguage(languageData: Partial<Language>): Promise<Language> {
-        const createdLanguage = LanguageRepository.create(languageData)
-        return LanguageRepository.save(createdLanguage)
+        const createdLanguage = this.languageRepository.create(languageData)
+        return this.languageRepository.save(createdLanguage)
     }
 
     async deleteLanguage(languageId: number): Promise<Language | null> {
-        const language = await LanguageRepository.findOne({ where: { id: languageId } });
+        const language = await this.languageRepository.findOne({ where: { id: languageId } });
 
         if (!language) {
             return null;
         }
 
-        await LanguageRepository.delete(languageId);
+        await this.languageRepository.delete(languageId);
 
         return language;
+    }
+
+    async getLanguagesFromNames({ names }: { names: string[]; }): Promise<Language[]> {
+        // Find language with the given names
+        const languages = await this.languageRepository.createQueryBuilder('languages')
+            .where('languages.name IN (:...names)', { names }) // Filter by names
+            .getMany();
+
+        return languages
     }
 }
