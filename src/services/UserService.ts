@@ -33,7 +33,7 @@ export class UserService {
 
             // Step 2: Add interests (if any)
             if (interestNames.length > 0) {
-                const interestIds = await this.interestService.getIdsByNames(interestNames);
+                const interestIds = (await this.interestService.getInterestsByNames(interestNames)).map((interest) => interest.id);;
                 const userInterests = interestIds.map((interestId) =>
                     transactionalEntityManager.create(UserInterest, { userId: savedUser.uuid, interestId })
                 );
@@ -64,7 +64,7 @@ export class UserService {
             const existingInterestIds = new Set(existingInterests.map((ui) => ui.interestId));
 
             // Fetch new interest IDs
-            const interestIds = interestNames.length > 0 ? await this.interestService.getIdsByNames(interestNames) : [];
+            const interestIds = interestNames.length > 0 ? (await this.interestService.getInterestsByNames(interestNames)).map((interest) => interest.id) : [];
             const newInterestIds = new Set(interestIds);
             // Determine which interests to add and remove
             const interestsToAdd = interestIds.filter((id) => !existingInterestIds.has(id));
@@ -92,9 +92,6 @@ export class UserService {
 
             // Fetch new language IDs
             const languages = await this.languageService.getLanguagesFromNames([...languageMap.keys()]);
-            console.log(languages)
-            console.log(existingLanguages)
-
             // Determine which languages to add, update, and remove
             const existingLanguageMap = new Map(existingLanguages.map((ul) => [ul.languageId, ul.proficiency]));
             const newLanguageMap = new Map(languages.map((l) => [l.id, languageMap.get(l.name)]));
@@ -146,7 +143,7 @@ export class UserService {
 
         if (interests && interests.length > 0) {
             const interestNames = Array.isArray(interests) ? interests : [interests];
-            interestIds = await this.interestService.getIdsByNames(interestNames);
+            interestIds = (await this.interestService.getInterestsByNames(interestNames)).map((interest) => interest.id);
         }
 
         if (languages && languages.length > 0) {

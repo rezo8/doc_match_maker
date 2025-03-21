@@ -19,23 +19,19 @@ export class InterestService {
 
     async deleteInterest(interestId: number): Promise<Interest | null> {
         const interest = await this.interestRepository.findOne({ where: { id: interestId } });
-
         if (!interest) {
             return null;
         }
-
         await this.interestRepository.delete(interestId);
 
         return interest;
     }
 
-    async getIdsByNames(names: string[]): Promise<number[]> {
-        // Find interests with the given names
+    async getInterestsByNames(names: string[]): Promise<Interest[]> {
         const interests = await this.interestRepository.createQueryBuilder('interests')
             .where('interests.name IN (:...names)', { names }) // Filter by names
             .getMany();
 
-        // Extract and return the IDs
-        return interests.map((interest) => interest.id);
+        return interests
     }
 }

@@ -78,7 +78,10 @@ describe('UserService', () => {
                 ['Spanish', LanguageProficiency.INTERMEDIATE],
             ]);
 
-            interestService.getIdsByNames.mockResolvedValue([1, 2]);
+            interestService.getInterestsByNames.mockResolvedValue([
+                { id: 1, name: 'Interest1', userInterests: [] },
+                { id: 2, name: 'Interest2', userInterests: [] }]
+            );
             languageService.getLanguagesFromNames.mockResolvedValue([
                 { id: 1, name: 'English', userLanguages: [] },
                 { id: 2, name: 'Spanish', userLanguages: [] },
@@ -106,7 +109,7 @@ describe('UserService', () => {
             // Assertions
             expect(result).toBeDefined();
             expect(result.uuid).toBe('test-uuid');
-            expect(interestService.getIdsByNames).toHaveBeenCalledWith(interestNames);
+            expect(interestService.getInterestsByNames).toHaveBeenCalledWith(interestNames);
             expect(languageService.getLanguagesFromNames).toHaveBeenCalledWith(['English', 'Spanish']);
             expect(createMock).toHaveBeenCalledWith(User, userData);
             expect(saveMock).toHaveBeenCalledWith(expect.objectContaining(userData));
@@ -139,7 +142,10 @@ describe('UserService', () => {
             const userId = 'test-uuid';
             const interestNames = ['Interest1', 'Interest2'];
 
-            interestService.getIdsByNames.mockResolvedValue([1, 2]);
+            interestService.getInterestsByNames.mockResolvedValue([
+                { id: 1, name: 'Interest1', userInterests: [] },
+                { id: 2, name: 'Interest2', userInterests: [] }]
+            );
 
             const createMock = jest.fn().mockImplementation((entity, data) => ({ ...data }));
             const saveMock = jest.fn().mockImplementation((entity) => entity);
@@ -158,7 +164,7 @@ describe('UserService', () => {
             });
             await userService.updateUserInterests(userId, interestNames);
 
-            expect(interestService.getIdsByNames).toHaveBeenCalledWith(interestNames);
+            expect(interestService.getInterestsByNames).toHaveBeenCalledWith(interestNames);
             expect(removeMock).toHaveBeenCalledWith(UserInterest, [{ userId: userId, interestId: 4 }]);
             expect(createMock).toHaveBeenCalledWith(UserInterest, { userId: userId, interestId: 2 })
         });
@@ -172,7 +178,10 @@ describe('UserService', () => {
                 ['Arabic', LanguageProficiency.FLUENT],
             ]);
 
-            interestService.getIdsByNames.mockResolvedValue([1, 2]);
+            interestService.getInterestsByNames.mockResolvedValue([
+                { id: 1, name: 'Interest1', userInterests: [] },
+                { id: 2, name: 'Interest2', userInterests: [] }]
+            );
             languageService.getLanguagesFromNames.mockResolvedValue([
                 { id: 1, name: 'Spanish', userLanguages: [] },
                 { id: 2, name: 'Arabic', userLanguages: [] },
@@ -240,12 +249,15 @@ describe('UserService', () => {
         it('should filter users by interest IDs', async () => {
             const queryParams = { interests: 'Cardiology,Neurology' };
             const mockInterestIds = [1, 2];
-            interestService.getIdsByNames.mockResolvedValue(mockInterestIds);
+            interestService.getInterestsByNames.mockResolvedValue([
+                { id: 1, name: 'Interest1', userInterests: [] },
+                { id: 2, name: 'Interest2', userInterests: [] }]
+            );
             userRepository.find.mockResolvedValue([defaultUser]);
 
             await userService.list(queryParams);
 
-            expect(interestService.getIdsByNames).toHaveBeenCalledWith(['Cardiology', 'Neurology']);
+            expect(interestService.getInterestsByNames).toHaveBeenCalledWith(['Cardiology', 'Neurology']);
             expect(userRepository.find).toHaveBeenCalledWith({
                 where: { userInterests: { interestId: In(mockInterestIds) } },
                 relations: ['userInterests', 'userLanguages'],

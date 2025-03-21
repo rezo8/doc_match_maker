@@ -30,7 +30,6 @@ export class LanguageService {
     }
 
     async getLanguagesFromNames(names: string[]): Promise<Language[]> {
-        // Find language with the given names
         const languages = await this.languageRepository.createQueryBuilder('languages')
             .where('languages.name IN (:...names)', { names }) // Filter by names
             .getMany();
