@@ -1,7 +1,7 @@
 {
   "name": "match_maker",
   "version": "1.0.0",
-  "main": "dist/server.js",
+  "main": "dist/src/server.js",
   "dependencies": {
     "accepts": "^1.3.8",
     "ansi-regex": "^6.1.0",
@@ -133,7 +133,7 @@
   },
   "scripts": {
     "build": "npx tsc",
-    "start": "tsc && node dist/server.js",
+    "start": "tsc && node dist/src/server.js",
     "test": "jest"
   },
   "keywords": [],

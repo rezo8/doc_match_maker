@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AppDataSource } from '../../src/config/ormconfig';
 import { User, UserRole } from '../../src/entities/User';
 import { UserInterest } from '../../src/entities/UserInterest';
@@ -107,7 +107,7 @@ describe('UserService', () => {
             expect(result).toBeDefined();
             expect(result.uuid).toBe('test-uuid');
             expect(interestService.getIdsByNames).toHaveBeenCalledWith(interestNames);
-            expect(languageService.getLanguagesFromNames).toHaveBeenCalledWith({ names: ['English', 'Spanish'] });
+            expect(languageService.getLanguagesFromNames).toHaveBeenCalledWith(['English', 'Spanish']);
             expect(createMock).toHaveBeenCalledWith(User, userData);
             expect(saveMock).toHaveBeenCalledWith(expect.objectContaining(userData));
             expect(createMock).toHaveBeenCalledWith(UserInterest, { userId: 'test-uuid', interestId: 1 });
@@ -203,7 +203,7 @@ describe('UserService', () => {
             const userId = 'test-uuid';
             await userService.updateUserLanguages(userId, languageMap);
 
-            expect(languageService.getLanguagesFromNames).toHaveBeenCalledWith({ names: ['Spanish', 'Arabic'] });
+            expect(languageService.getLanguagesFromNames).toHaveBeenCalledWith(['Spanish', 'Arabic']);
             expect(removeMock).toHaveBeenCalledWith(UserLanguage, [{ userId: userId, languageId: 4, proficiency: LanguageProficiency.INTERMEDIATE }]);
             expect(createMock).toHaveBeenCalledWith(UserLanguage, { userId: userId, languageId: 1, proficiency: LanguageProficiency.INTERMEDIATE })
             expect(updateMock).toHaveBeenCalledWith(UserLanguage, { userId: userId, languageId: 2 }, { proficiency: LanguageProficiency.FLUENT })
@@ -211,16 +211,71 @@ describe('UserService', () => {
     });
 
     describe('list', () => {
-        it('should return a list of users', async () => {
-            const mockUsers = [defaultUser,];
-
+        // TODO test query params. 
+        it('should return a list of users with default query', async () => {
+            const mockUsers = [defaultUser];
             userRepository.find.mockResolvedValue(mockUsers);
 
             const result = await userService.list();
 
             expect(result).toEqual(mockUsers);
             expect(userRepository.find).toHaveBeenCalledWith({
-                relations: ['userLanguages', 'userInterests'],
+                where: {},
+                relations: ['userInterests', 'userLanguages'],
+            });
+        });
+
+        it('should filter users by type and email', async () => {
+            const queryParams = { type: 'admin', email: 'test@example.com' };
+            userRepository.find.mockResolvedValue([defaultUser]);
+
+            await userService.list(queryParams);
+
+            expect(userRepository.find).toHaveBeenCalledWith({
+                where: { type: 'admin', email: 'test@example.com' },
+                relations: ['userInterests', 'userLanguages'],
+            });
+        });
+
+        it('should filter users by interest IDs', async () => {
+            const queryParams = { interests: 'Cardiology,Neurology' };
+            const mockInterestIds = [1, 2];
+            interestService.getIdsByNames.mockResolvedValue(mockInterestIds);
+            userRepository.find.mockResolvedValue([defaultUser]);
+
+            await userService.list(queryParams);
+
+            expect(interestService.getIdsByNames).toHaveBeenCalledWith(['Cardiology', 'Neurology']);
+            expect(userRepository.find).toHaveBeenCalledWith({
+                where: { userInterests: { interestId: In(mockInterestIds) } },
+                relations: ['userInterests', 'userLanguages'],
+            });
+        });
+
+        it('should filter users by language IDs', async () => {
+            const queryParams = { languages: 'en,es' };
+            const mockLanguageIds = [1, 2];
+            languageService.getLanguagesFromNames.mockResolvedValue([{ id: 1, name: "en", userLanguages: [] }, { id: 2, name: "Spanish", userLanguages: [] }]);
+            userRepository.find.mockResolvedValue([defaultUser]);
+
+            await userService.list(queryParams);
+
+            expect(languageService.getLanguagesFromNames).toHaveBeenCalledWith(['en', 'es']);
+            expect(userRepository.find).toHaveBeenCalledWith({
+                where: { userLanguages: { languageId: In(mockLanguageIds) } },
+                relations: ['userInterests', 'userLanguages'],
+            });
+        });
+
+        it('should handle empty interest and language arrays', async () => {
+            const queryParams = { interests: '', languages: '' };
+            userRepository.find.mockResolvedValue([defaultUser]);
+
+            await userService.list(queryParams);
+
+            expect(userRepository.find).toHaveBeenCalledWith({
+                where: {},
+                relations: ['userInterests', 'userLanguages'],
             });
         });
     });

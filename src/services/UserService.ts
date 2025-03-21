@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AppDataSource } from '../config/ormconfig';
 import { User, UserRole } from '../entities/User';
 import { UserInterest } from '../entities/UserInterest';
@@ -42,7 +42,7 @@ export class UserService {
 
             // Step 3: Add languages (if any)
             if (languageMap.size > 0) {
-                const languages = await this.languageService.getLanguagesFromNames({ names: [...languageMap.keys()] });
+                const languages = await this.languageService.getLanguagesFromNames([...languageMap.keys()]);
                 const userLanguages = languages.map((language) =>
                     transactionalEntityManager.create(UserLanguage, {
                         userId: savedUser.uuid,
@@ -91,7 +91,7 @@ export class UserService {
             const existingLanguages = await transactionalEntityManager.find(UserLanguage, { where: { userId } });
 
             // Fetch new language IDs
-            const languages = await this.languageService.getLanguagesFromNames({ names: [...languageMap.keys()] });
+            const languages = await this.languageService.getLanguagesFromNames([...languageMap.keys()]);
             console.log(languages)
             console.log(existingLanguages)
 
@@ -133,8 +133,50 @@ export class UserService {
         });
     }
 
-    async list(): Promise<User[]> {
-        return this.userRepository.find({ relations: ['userLanguages', 'userInterests'] });
+    // TODO make it so that it is exclusive AND rather than inclusive OR for interest and languages.
+    async list(queryParams: any = {}): Promise<User[]> {
+        const { type, email } = queryParams;
+        const interests = queryParams.interests ? queryParams.interests.split(',') : [];
+        const languages = queryParams.languages ? queryParams.languages.split(',') : [];
+
+
+        // Step 1: Fetch IDs for interests and languages based on their names
+        let interestIds: number[] = [];
+        let languageIds: number[] = [];
+
+        if (interests && interests.length > 0) {
+            const interestNames = Array.isArray(interests) ? interests : [interests];
+            interestIds = await this.interestService.getIdsByNames(interestNames);
+        }
+
+        if (languages && languages.length > 0) {
+            const languageNames: string[] = Array.isArray(languages) ? languages : [languages];
+            languageIds = (await this.languageService.getLanguagesFromNames(languageNames)).map(x => x.id);
+        }
+        // Step 2: Build the where object
+        const where: any = {};
+
+        if (type) {
+            where.type = type;
+        }
+
+        if (email) {
+            where.email = email;
+        }
+
+        if (interestIds.length > 0) {
+            where.userInterests = { interestId: In(interestIds) };
+        }
+
+        if (languageIds.length > 0) {
+            where.userLanguages = { languageId: In(languageIds) };
+        }
+
+        // Step 3: Execute the query with the where object
+        return await this.userRepository.find({
+            where,
+            relations: ['userInterests', 'userLanguages'], // Include relations
+        });
     }
 
     async findByUuid(uuid: string): Promise<User | null> {

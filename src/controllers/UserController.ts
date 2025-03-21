@@ -7,7 +7,8 @@ const userService = new UserService()
 
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
-        const users = await userService.list()
+        const queryParams = req.query; // Extract query parameters
+        const users = await userService.list(queryParams)
         res.status(200).json({ users });
     } catch (error) {
         console.error("Error fetching users:", error);
