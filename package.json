@@ -135,7 +135,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "start": "node dist/src/server.js",
+    "start": "node dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch"
   },
