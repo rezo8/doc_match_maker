@@ -136,8 +136,10 @@
   "scripts": {
     "build": "npx tsc",
     "start": "tsc && node dist/src/server.js",
-    "test": "jest"
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
+  
   "keywords": [],
   "author": "",
   "license": "ISC",

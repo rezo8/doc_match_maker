@@ -1,9 +1,9 @@
 module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'node',
-    moduleFileExtensions: ['ts', 'tsx', 'js'],
-    testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
+    testMatch: ['**/tests/**/*.spec.ts'], // Match test files
+    moduleFileExtensions: ['ts', 'js', 'json'],
     transform: {
-        '^.+\\.ts$': 'ts-jest',
+        '^.+\\.ts$': 'ts-jest', // Transform TypeScript files
     },
 };
